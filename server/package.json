@@ -1,0 +1,30 @@
+{
+  "name": "campusrag-server",
+  "version": "1.0.0",
+  "description": "Backend service for CampusRAG College Information Assistant",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "seed": "node src/scripts/seedData.js"
+  },
+  "keywords": ["rag", "ai", "campus", "education", "embeddings", "vector-search"],
+  "author": "CampusRAG Team",
+  "license": "MIT",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "express-validator": "^7.2.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mammoth": "^1.11.0",
+    "mongoose": "^8.13.0",
+    "multer": "^1.4.5-lts.1",
+    "openai": "^4.90.0",
+    "pdf-parse": "^1.1.1"
+  }
+}
