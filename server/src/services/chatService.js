@@ -1,11 +1,12 @@
 const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
 const retrievalService = require('./retrievalService');
+const examResultService = require('./examResultService');
 const llmService = require('./llmService');
 
 class ChatService {
   /**
-   * Process a student query, execute RAG retrieval, generate answer, and persist turns
+   * Process a student query, execute RAG retrieval (both DB records & Vector documents), generate answer, and persist turns
    */
   async processQuery({ userId, question, conversationId, categoryFilter, departmentFilter }) {
     const startTime = Date.now();
@@ -34,22 +35,27 @@ class ChatService {
       .lean();
     history.reverse();
 
-    // 3. Retrieve relevant context chunks via vector search
+    // 3. Check for Live Database Records (e.g. Student Exam Results, CGPA, Grades)
+    const examDbResult = await examResultService.retrieveExamContext(question, { _id: userId });
+
+    // 4. Retrieve relevant policy/document context chunks via vector search
     const retrieval = await retrievalService.retrieveContext(question, {
       category: categoryFilter || conversation.categoryFilter,
       department: departmentFilter || conversation.departmentFilter,
     });
 
-    // 4. Generate grounded answer or deterministic fallback
+    // 5. Generate grounded answer combining DB records and document excerpts
     const answerResult = await llmService.generateAnswer({
       question,
       contextChunks: retrieval.chunks,
+      databaseContext: examDbResult.contextText,
+      databaseSources: examDbResult.sources,
       conversationHistory: history,
     });
 
     const latencyMs = Date.now() - startTime;
 
-    // 5. Persist user question turn
+    // 6. Persist user question turn
     const userMessage = await Message.create({
       conversationId: conversation._id,
       sender: 'user',
@@ -57,18 +63,18 @@ class ChatService {
       foundAnswer: true,
     });
 
-    // 6. Persist assistant response turn with sources & scores
+    // 7. Persist assistant response turn with sources & scores
     const assistantMessage = await Message.create({
       conversationId: conversation._id,
       sender: 'assistant',
       message: answerResult.answer,
       sources: answerResult.sources,
-      similarityScores: retrieval.chunks.map((c) => Math.round((c.score || 0) * 100) / 100),
+      similarityScores: answerResult.sources.map((s) => s.similarityScore || 1.0),
       foundAnswer: answerResult.foundAnswer,
       latencyMs,
     });
 
-    // 7. Update conversation last activity and preview
+    // 8. Update conversation last activity and preview
     conversation.lastActivityAt = new Date();
     conversation.lastMessagePreview = answerResult.answer.slice(0, 100);
     await conversation.save();

@@ -5,6 +5,7 @@ const config = require('../config/env');
 const User = require('../models/User');
 const Document = require('../models/Document');
 const DocumentChunk = require('../models/DocumentChunk');
+const ExamResult = require('../models/ExamResult');
 const documentService = require('../services/documentService');
 const vectorStore = require('../config/vectorStore');
 
@@ -172,12 +173,18 @@ async function seed() {
         email: 'student@campus.edu',
         password: 'StudentPassword123!',
         role: 'student',
-        department: 'Computer Science',
+        rollNumber: '23CS101',
+        department: 'Computer Science & Engineering',
       });
       await student.save();
-      console.log('[Seed] Student user created: student@campus.edu (Password: StudentPassword123!)');
+      console.log('[Seed] Student user created: student@campus.edu (Password: StudentPassword123!, Roll: 23CS101)');
     } else {
-      console.log('[Seed] Student user already exists: student@campus.edu');
+      if (!student.rollNumber) {
+        student.rollNumber = '23CS101';
+        student.department = 'Computer Science & Engineering';
+        await student.save();
+      }
+      console.log('[Seed] Student user already exists: student@campus.edu (Roll: 23CS101)');
     }
 
     // 3. Seed Sample Documents & Embeddings
@@ -211,6 +218,88 @@ async function seed() {
       } else {
         console.log(`[Seed] Document already indexed: "${docData.title}"`);
       }
+    }
+
+    // 4. Seed Structured Database Records (Exam Results & Grades)
+    console.log('[Seed] Checking student exam results in MongoDB...');
+    const examSeedData = [
+      // Alex Student (23CS101) - Sem 5
+      {
+        studentId: student._id,
+        rollNumber: '23CS101',
+        studentName: 'Alex Student',
+        semester: 5,
+        academicYear: '2025-2026',
+        department: 'Computer Science & Engineering',
+        examinationType: 'Regular End-Semester',
+        subjects: [
+          { courseCode: 'CS501', courseName: 'Computer Networks', credits: 4, marks: 91, grade: 'O', gradePoints: 10, status: 'Pass' },
+          { courseCode: 'CS502', courseName: 'Artificial Intelligence & Expert Systems', credits: 4, marks: 89, grade: 'A+', gradePoints: 9, status: 'Pass' },
+          { courseCode: 'CS503', courseName: 'Software Engineering & Agile Methodology', credits: 3, marks: 85, grade: 'A', gradePoints: 8, status: 'Pass' },
+          { courseCode: 'CS504', courseName: 'Web Technologies & Cloud Computing', credits: 3, marks: 93, grade: 'O', gradePoints: 10, status: 'Pass' },
+          { courseCode: 'CS505', courseName: 'Machine Learning & Neural Nets Lab', credits: 2, marks: 98, grade: 'O', gradePoints: 10, status: 'Pass' },
+        ],
+        totalCredits: 16,
+        earnedCredits: 16,
+        sgpa: 9.38,
+        cgpa: 9.16,
+        resultStatus: 'Pass',
+        declarationDate: new Date('2026-02-15'),
+      },
+      // Alex Student (23CS101) - Sem 4
+      {
+        studentId: student._id,
+        rollNumber: '23CS101',
+        studentName: 'Alex Student',
+        semester: 4,
+        academicYear: '2024-2025',
+        department: 'Computer Science & Engineering',
+        examinationType: 'Regular End-Semester',
+        subjects: [
+          { courseCode: 'CS401', courseName: 'Design & Analysis of Algorithms', credits: 4, marks: 88, grade: 'A+', gradePoints: 9, status: 'Pass' },
+          { courseCode: 'CS402', courseName: 'Operating Systems', credits: 4, marks: 84, grade: 'A', gradePoints: 8, status: 'Pass' },
+          { courseCode: 'CS403', courseName: 'Theory of Computation', credits: 3, marks: 78, grade: 'B+', gradePoints: 7, status: 'Pass' },
+          { courseCode: 'CS404', courseName: 'Database Management Systems', credits: 4, marks: 94, grade: 'O', gradePoints: 10, status: 'Pass' },
+          { courseCode: 'CS405', courseName: 'DBMS & OS Simulation Lab', credits: 2, marks: 96, grade: 'O', gradePoints: 10, status: 'Pass' },
+        ],
+        totalCredits: 17,
+        earnedCredits: 17,
+        sgpa: 8.76,
+        cgpa: 9.06,
+        resultStatus: 'Pass',
+        declarationDate: new Date('2025-07-20'),
+      },
+      // Peer Student: Priya Sharma (22CS104) - Sem 5
+      {
+        rollNumber: '22CS104',
+        studentName: 'Priya Sharma',
+        semester: 5,
+        academicYear: '2025-2026',
+        department: 'Computer Science & Engineering',
+        examinationType: 'Regular End-Semester',
+        subjects: [
+          { courseCode: 'CS501', courseName: 'Computer Networks', credits: 4, marks: 86, grade: 'A', gradePoints: 8, status: 'Pass' },
+          { courseCode: 'CS502', courseName: 'Artificial Intelligence & Expert Systems', credits: 4, marks: 92, grade: 'O', gradePoints: 10, status: 'Pass' },
+          { courseCode: 'CS503', courseName: 'Software Engineering', credits: 3, marks: 88, grade: 'A+', gradePoints: 9, status: 'Pass' },
+          { courseCode: 'CS504', courseName: 'Web Technologies', credits: 3, marks: 81, grade: 'A', gradePoints: 8, status: 'Pass' },
+          { courseCode: 'CS505', courseName: 'Machine Learning Lab', credits: 2, marks: 94, grade: 'O', gradePoints: 10, status: 'Pass' },
+        ],
+        totalCredits: 16,
+        earnedCredits: 16,
+        sgpa: 8.94,
+        cgpa: 8.85,
+        resultStatus: 'Pass',
+        declarationDate: new Date('2026-02-15'),
+      },
+    ];
+
+    for (const record of examSeedData) {
+      await ExamResult.findOneAndUpdate(
+        { rollNumber: record.rollNumber, semester: record.semester },
+        { $set: record },
+        { upsert: true, new: true }
+      );
+      console.log(`[Seed] Exam result synced for Roll: ${record.rollNumber} (Sem ${record.semester})`);
     }
 
     console.log('[Seed] Seeding completed successfully!');

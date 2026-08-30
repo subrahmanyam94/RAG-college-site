@@ -29,6 +29,12 @@ const userSchema = new mongoose.Schema(
       enum: ['student', 'admin'],
       default: 'student',
     },
+    rollNumber: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      default: '',
+    },
     department: {
       type: String,
       trim: true,

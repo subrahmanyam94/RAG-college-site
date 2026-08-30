@@ -12,6 +12,7 @@ const errorHandler = require('./middleware/errorHandler');
 const authRoutes = require('./routes/authRoutes');
 const documentRoutes = require('./routes/documentRoutes');
 const chatRoutes = require('./routes/chatRoutes');
+const examResultRoutes = require('./routes/examResultRoutes');
 
 const app = express();
 
@@ -90,11 +91,13 @@ app.get('/', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/results', examResultRoutes);
 
 // Route aliases (in case requests are sent without /api prefix)
 app.use('/auth', authRoutes);
 app.use('/documents', documentRoutes);
 app.use('/chat', chatRoutes);
+app.use('/results', examResultRoutes);
 
 // 404 Route
 app.use('*', (req, res) => {

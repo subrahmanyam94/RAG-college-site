@@ -1,49 +1,62 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, FileText, CheckCircle, ExternalLink, Bookmark } from 'lucide-react';
-import { getCategoryBadgeStyle, formatSimilarity } from '../../lib/utils';
+import { ChevronDown, ChevronUp, FileText, CheckCircle, Database, Bookmark } from 'lucide-react';
+import { getCategoryBadgeStyle } from '../../lib/utils';
 
 export default function SourceReferenceCard({ source, index }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const isDatabase = source.type === 'database_record' || source.category?.includes('DB');
 
-  const categoryStyle = getCategoryBadgeStyle(source.category);
+  const categoryStyle = isDatabase
+    ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+    : getCategoryBadgeStyle(source.category);
   const matchPct = Math.round((source.similarityScore || 0) * 100);
 
   return (
-    <div className="rounded-xl border border-amber-200/90 bg-white transition-all duration-200 overflow-hidden hover:border-orange-400 shadow-2xs">
+    <div className={`rounded-xl border transition-all duration-200 overflow-hidden shadow-2xs ${
+      isDatabase
+        ? 'border-emerald-300/90 bg-white hover:border-emerald-500'
+        : 'border-amber-200/90 bg-white hover:border-orange-400'
+    }`}>
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between px-4 py-3 text-left text-xs text-slate-700 hover:bg-amber-50/50 transition-colors"
+        className={`w-full flex items-center justify-between px-4 py-3 text-left text-xs transition-colors ${
+          isDatabase ? 'text-emerald-950 hover:bg-emerald-50/40' : 'text-slate-700 hover:bg-amber-50/50'
+        }`}
       >
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
-          <div className="p-1.5 rounded-lg bg-amber-100/80 text-orange-700 shrink-0">
-            <FileText className="w-4 h-4" />
+          <div className={`p-1.5 rounded-lg shrink-0 ${
+            isDatabase ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100/80 text-orange-700'
+          }`}>
+            {isDatabase ? <Database className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
           </div>
 
           <div className="flex items-center gap-2 truncate">
             <span className="font-semibold text-slate-900 truncate">
-              {source.documentTitle || 'Official College Document'}
+              {source.documentTitle || (isDatabase ? 'Student Exam Record' : 'Official College Document')}
             </span>
-            <span className="text-[11px] text-amber-900/70 shrink-0 font-medium">
-              {source.pageNumber ? `Page ${source.pageNumber}` : 'Section'}
+            <span className={`text-[11px] shrink-0 font-medium ${isDatabase ? 'text-emerald-700' : 'text-amber-900/70'}`}>
+              {isDatabase ? `Sem ${source.pageNumber}` : (source.pageNumber ? `Page ${source.pageNumber}` : 'Section')}
             </span>
           </div>
 
           <span
             className={`text-[10px] px-2 py-0.5 rounded-full border shrink-0 font-semibold ${categoryStyle}`}
           >
-            {source.category || 'General'}
+            {isDatabase ? 'Live DB Record' : (source.category || 'General')}
           </span>
         </div>
 
         <div className="flex items-center gap-3 shrink-0 ml-2">
-          <div className="flex items-center gap-1 text-[11px] text-orange-600 font-bold font-mono">
+          <div className={`flex items-center gap-1 text-[11px] font-bold font-mono ${
+            isDatabase ? 'text-emerald-600' : 'text-orange-600'
+          }`}>
             <CheckCircle className="w-3.5 h-3.5" />
-            <span>{matchPct > 0 ? `${matchPct}% Match` : 'Verified'}</span>
+            <span>{isDatabase ? '100% DB Exact' : (matchPct > 0 ? `${matchPct}% Match` : 'Verified')}</span>
           </div>
           {isExpanded ? (
-            <ChevronUp className="w-4 h-4 text-amber-700" />
+            <ChevronUp className="w-4 h-4 text-slate-500" />
           ) : (
-            <ChevronDown className="w-4 h-4 text-amber-700" />
+            <ChevronDown className="w-4 h-4 text-slate-500" />
           )}
         </div>
       </button>

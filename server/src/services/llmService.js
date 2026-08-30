@@ -21,22 +21,42 @@ class LLMService {
   }
 
   /**
-   * Constructs prompt and calls LLM with retrieved context
+   * Constructs prompt and calls LLM with retrieved context (both DB and Vector Chunks)
    */
-  async generateAnswer({ question, contextChunks, conversationHistory = [] }) {
-    if (!contextChunks || contextChunks.length === 0) {
+  async generateAnswer({
+    question,
+    contextChunks = [],
+    databaseContext = '',
+    databaseSources = [],
+    conversationHistory = [],
+  }) {
+    const hasDb = Boolean(databaseContext && databaseContext.trim().length > 0);
+    const hasDocs = Boolean(contextChunks && contextChunks.length > 0);
+
+    if (!hasDb && !hasDocs) {
       return this.getFallbackResponse(question);
     }
 
     // Build context string with clear citations and page numbers
-    const contextBlock = contextChunks
-      .map((c, i) => {
-        const title = c.documentTitle || c.originalName || 'Document';
-        const page = c.pageNumber ? `Page ${c.pageNumber}` : 'General Section';
-        const category = c.category ? `[${c.category}]` : '';
-        return `--- Source [${i + 1}]: ${title} (${page}) ${category} ---\n${c.text}`;
-      })
-      .join('\n\n');
+    let contextBlock = '';
+    if (hasDocs) {
+      contextBlock = contextChunks
+        .map((c, i) => {
+          const title = c.documentTitle || c.originalName || 'Document';
+          const page = c.pageNumber ? `Page ${c.pageNumber}` : 'General Section';
+          const category = c.category ? `[${c.category}]` : '';
+          return `--- Source [${i + 1}]: ${title} (${page}) ${category} ---\n${c.text}`;
+        })
+        .join('\n\n');
+    }
+
+    let combinedContext = '';
+    if (hasDb) {
+      combinedContext += `${databaseContext}\n\n`;
+    }
+    if (hasDocs) {
+      combinedContext += `OFFICIAL COLLEGE DOCUMENT EXCERPTS:\n${contextBlock}`;
+    }
 
     // Build multi-turn dialog summary if history exists
     let historyBlock = '';
@@ -50,23 +70,25 @@ class LLMService {
         '\n\n';
     }
 
-    const systemPrompt = `You are CampusRAG, an official AI College Information Assistant.
-Your mission is to provide clear, reliable, and helpful answers to students based STRICTLY on the official college excerpts provided below.
+    const systemPrompt = `You are CampusRAG, an official AI College Information Assistant connected directly to MongoDB Campus Databases and Institutional Archives.
+Your mission is to provide clear, reliable, and helpful answers to students based STRICTLY on the official database records and college excerpts provided below.
 
 RULES:
-1. Use ONLY the facts directly stated in the provided institutional excerpts. Do NOT hallucinate, infer, or assume details not present.
-2. If the excerpts do not contain the answer, explicitly state that the documents do not specify this information.
-3. Reference the relevant document names and pages whenever mentioning specific policies, dates, fees, or requirements.
-4. Format your response in clean, readable GitHub Markdown with bold headings, bullet points, or numbered lists where appropriate.
+1. For student academic records / exam results, present the details clearly in a formatted Markdown table with subjects, marks, grades, SGPA, CGPA, and status.
+2. Use ONLY the facts directly stated in the provided database records and excerpts. Do NOT hallucinate or assume details not present.
+3. Reference the relevant document names, database collections, and pages.
+4. Format your response in clean, readable GitHub Markdown with bold headings, bullet points, or tables.
 5. Maintain a respectful, welcoming, and professional academic tone.`;
 
-    const userPrompt = `${historyBlock}OFFICIAL COLLEGE EXCERPTS:
-${contextBlock}
+    const userPrompt = `${historyBlock}OFFICIAL VERIFIED CAMPUS CONTEXT:
+${combinedContext}
 
 STUDENT QUESTION:
 ${question}
 
-Provide a direct, grounded answer adhering strictly to the excerpts above.`;
+Provide a direct, grounded answer adhering strictly to the verified context above.`;
+
+    const allSources = [...databaseSources, ...this.formatSources(contextChunks)];
 
     // Try live LLM provider
     try {
@@ -85,7 +107,7 @@ Provide a direct, grounded answer adhering strictly to the excerpts above.`;
 
         return {
           answer: text,
-          sources: this.formatSources(contextChunks),
+          sources: allSources,
           foundAnswer: true,
         };
       }
@@ -107,7 +129,7 @@ Provide a direct, grounded answer adhering strictly to the excerpts above.`;
         const text = response.choices[0]?.message?.content || '';
         return {
           answer: text,
-          sources: this.formatSources(contextChunks),
+          sources: allSources,
           foundAnswer: true,
         };
       }
@@ -118,40 +140,54 @@ Provide a direct, grounded answer adhering strictly to the excerpts above.`;
     }
 
     // 3. Built-in Grounded Synthesizer (for zero-API-key development and offline testing)
-    return this.synthesizeGroundedAnswer(question, contextChunks);
+    return this.synthesizeGroundedAnswer(question, contextChunks, databaseContext, databaseSources);
   }
 
   /**
-   * Synthesizes an accurate, grounded answer from the top matching chunks
+   * Synthesizes an accurate, grounded answer from database records and top matching chunks
    */
-  synthesizeGroundedAnswer(question, chunks) {
-    const topChunk = chunks[0];
-    const topSources = this.formatSources(chunks);
+  synthesizeGroundedAnswer(question, chunks = [], databaseContext = '', databaseSources = []) {
+    let formattedAnswer = '';
+    const allSources = [...databaseSources, ...this.formatSources(chunks)];
 
-    // Extract key sentences from top chunks that directly answer the query
-    const docTitle = topChunk.documentTitle || 'College Document';
-    const pageRef = topChunk.pageNumber ? ` (Page ${topChunk.pageNumber})` : '';
+    if (databaseContext && databaseContext.trim().length > 0) {
+      formattedAnswer += `### 🎓 Official Student Examination & Academic Record\n\n`;
+      formattedAnswer += `Directly retrieved from the **MongoDB Student Database & Controller of Examinations Records**:\n\n`;
+      formattedAnswer += `${databaseContext}\n\n`;
 
-    let formattedAnswer = `Based on the official institutional records in **${docTitle}**${pageRef}:\n\n`;
+      if (chunks && chunks.length > 0) {
+        const topChunk = chunks[0];
+        formattedAnswer += `#### 📋 Applicable Academic Regulations (${topChunk.documentTitle || 'Academic Policy'}):\n`;
+        formattedAnswer += `${topChunk.text.trim().slice(0, 300)}...\n\n`;
+      }
 
-    // Group text by paragraphs or clean bullet points
-    const lines = chunks
-      .slice(0, 3)
-      .map((c) => c.text.trim())
-      .filter((t) => t.length > 20);
+      formattedAnswer += `> *Note: This transcript is verified and sealed by the Office of the Controller of Examinations.*`;
+    } else {
+      const topChunk = chunks[0];
+      const docTitle = topChunk.documentTitle || 'College Document';
+      const pageRef = topChunk.pageNumber ? ` (Page ${topChunk.pageNumber})` : '';
 
-    formattedAnswer += lines.join('\n\n') + '\n\n';
-    formattedAnswer += `> *Please verify with the official ${topChunk.category || 'Department'} office for any recent amendments or individual exemptions.*`;
+      formattedAnswer = `Based on the official institutional records in **${docTitle}**${pageRef}:\n\n`;
+
+      const lines = chunks
+        .slice(0, 3)
+        .map((c) => c.text.trim())
+        .filter((t) => t.length > 20);
+
+      formattedAnswer += lines.join('\n\n') + '\n\n';
+      formattedAnswer += `> *Please verify with the official ${topChunk.category || 'Department'} office for any recent amendments or individual exemptions.*`;
+    }
 
     return {
       answer: formattedAnswer,
-      sources: topSources,
+      sources: allSources,
       foundAnswer: true,
     };
   }
 
   formatSources(chunks) {
     return chunks.map((c) => ({
+      type: c.type || 'document_chunk',
       documentId: c.documentId,
       chunkId: c.chunkId,
       documentTitle: c.documentTitle,

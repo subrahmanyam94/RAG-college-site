@@ -4,14 +4,17 @@ import { useChatStore } from '../../store/chatStore';
 import MessageBubble from '../MessageBubble/MessageBubble';
 
 const SAMPLE_PROMPTS = [
+  'Show my semester 5 exam results & SGPA',
   'What are the hostel curfew hours and late entry rules?',
-  'What is the minimum attendance required for final exams?',
   'Explain the placement policy and dream company offer criteria.',
+  'What is the exam result and CGPA for roll number 22CS104?',
+  'What is the minimum attendance required for final exams?',
   'How do I qualify for merit-based scholarships or financial aid?',
 ];
 
 const CATEGORIES = [
   'All',
+  'Exam Results (DB)',
   'Admissions',
   'Hostel',
   'Exams',
@@ -64,8 +67,8 @@ export default function ChatWindow() {
       <div className="px-6 py-3 border-b border-amber-200/70 bg-white/80 backdrop-blur-md flex flex-wrap items-center justify-between gap-3 shrink-0 shadow-2xs">
         <div className="flex items-center gap-2 text-xs text-amber-950 font-medium">
           <Sparkles className="w-3.5 h-3.5 text-orange-600" />
-          <span className="font-bold">Grounded Knowledge Scope:</span>
-          <span className="text-amber-800/80">Official Institutional Documents & Circulars</span>
+          <span className="font-bold">Hybrid RAG Scope:</span>
+          <span className="text-amber-800/80">Institutional Archives & Live MongoDB Database</span>
         </div>
 
         {/* Category Filter Dropdown */}

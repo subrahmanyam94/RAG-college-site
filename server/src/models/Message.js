@@ -2,13 +2,16 @@ const mongoose = require('mongoose');
 
 const sourceReferenceSchema = new mongoose.Schema(
   {
+    type: {
+      type: String,
+      enum: ['document_chunk', 'database_record'],
+      default: 'document_chunk',
+    },
     documentId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Document',
+      type: mongoose.Schema.Types.Mixed,
     },
     chunkId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'DocumentChunk',
+      type: mongoose.Schema.Types.Mixed,
     },
     documentTitle: {
       type: String,
