@@ -19,32 +19,51 @@ class ExamResultService {
   /**
    * Intelligently detect exam query intent and fetch structured MongoDB records
    */
-  async retrieveExamContext(query, user) {
+  async retrieveExamContext(query, user, history = []) {
     const cleanQuery = query.toLowerCase();
-    const isExamQuery =
-      cleanQuery.includes('result') ||
-      cleanQuery.includes('grade') ||
-      cleanQuery.includes('marks') ||
-      cleanQuery.includes('cgpa') ||
-      cleanQuery.includes('sgpa') ||
-      cleanQuery.includes('gpa') ||
-      cleanQuery.includes('pass') ||
-      cleanQuery.includes('fail') ||
-      cleanQuery.includes('transcript') ||
-      cleanQuery.includes('score card') ||
-      cleanQuery.includes('roll') ||
-      cleanQuery.includes('semester');
+    const historyText = Array.isArray(history)
+      ? history.map((m) => m.message || '').join(' ')
+      : '';
+    const combinedText = `${historyText} ${query}`.toLowerCase();
+
+    // Strict word-boundary intent detection for student academic / exam records
+    const hasDirectExamTerms = /\b(result|results|grade|grades|marks|cgpa|sgpa|gpa|transcript|score card|marksheet|hall ticket)\b/i.test(cleanQuery);
+    const hasAcademicFollowUp =
+      /\b(score|scores|passed|failed|credits)\b/i.test(cleanQuery) &&
+      /\b(semester|sem|subject|exam|course)\b/i.test(combinedText);
+    const hasRollLookup = /\b([0-9]{2}[A-Z]{2,4}[0-9]{3,4})\b/i.test(cleanQuery);
+
+    const isExamQuery = hasDirectExamTerms || hasAcademicFollowUp || hasRollLookup;
 
     if (!isExamQuery) {
       return { hasDbRecords: false, records: [], contextText: '', sources: [] };
     }
 
-    // 1. Extract any mentioned Roll Number (e.g., 23CS101, 22CS104, 21EC204)
-    const rollMatch = query.match(/\b([0-9]{2}[A-Z]{2,4}[0-9]{3,4})\b/i);
+    // 1. Extract any mentioned Roll Number (e.g., 23CS101, 22CS104, 21EC204) from query or recent history
+    let rollMatch = query.match(/\b([0-9]{2}[A-Z]{2,4}[0-9]{3,4})\b/i);
+    if (!rollMatch && history.length > 0) {
+      // Check previous turns from newest to oldest
+      for (let i = history.length - 1; i >= 0; i--) {
+        const turnMatch = (history[i].message || '').match(/\b([0-9]{2}[A-Z]{2,4}[0-9]{3,4})\b/i);
+        if (turnMatch) {
+          rollMatch = turnMatch;
+          break;
+        }
+      }
+    }
     const mentionedRoll = rollMatch ? rollMatch[1].toUpperCase() : null;
 
-    // 2. Extract semester if specified (e.g., semester 5, sem 4, 3rd sem)
-    const semMatch = query.match(/(?:semester|sem|s)[\s-]*([1-8])\b/i) || query.match(/\b([1-8])(?:st|nd|rd|th)?[\s-]*(?:sem|semester)\b/i);
+    // 2. Extract semester if specified (e.g., semester 5, sem 4, 3rd sem) from query or history
+    let semMatch = query.match(/(?:semester|sem|s)[\s-]*([1-8])\b/i) || query.match(/\b([1-8])(?:st|nd|rd|th)?[\s-]*(?:sem|semester)\b/i);
+    if (!semMatch && history.length > 0) {
+      for (let i = history.length - 1; i >= 0; i--) {
+        const turnSemMatch = (history[i].message || '').match(/(?:semester|sem|s)[\s-]*([1-8])\b/i) || (history[i].message || '').match(/\b([1-8])(?:st|nd|rd|th)?[\s-]*(?:sem|semester)\b/i);
+        if (turnSemMatch) {
+          semMatch = turnSemMatch;
+          break;
+        }
+      }
+    }
     const mentionedSem = semMatch ? parseInt(semMatch[1], 10) : null;
 
     let records = [];

@@ -35,16 +35,29 @@ class ChatService {
       .lean();
     history.reverse();
 
-    // 3. Check for Live Database Records (e.g. Student Exam Results, CGPA, Grades)
-    const examDbResult = await examResultService.retrieveExamContext(question, { _id: userId });
+    // 3. Check for Live Database Records (e.g. Student Exam Results, CGPA, Grades) with history context
+    const examDbResult = await examResultService.retrieveExamContext(question, { _id: userId }, history);
 
-    // 4. Retrieve relevant policy/document context chunks via vector search
-    const retrieval = await retrievalService.retrieveContext(question, {
+    // 4. Contextual query expansion for multi-turn follow-up questions
+    let searchQuestion = question;
+    if (history.length > 0) {
+      const lastUserMsg = [...history].reverse().find((m) => m.sender === 'user');
+      const isFollowUp =
+        question.length < 55 ||
+        /\b(it|this|that|these|those|he|she|they|her|his|him|them|penalty|fine|fees|rules|criteria|exam|results|gpa|cgpa|sgpa|more|why|how|what about|and|also|status)\b/i.test(question);
+
+      if (lastUserMsg && isFollowUp) {
+        searchQuestion = `${lastUserMsg.message} ${question}`;
+      }
+    }
+
+    // 5. Retrieve relevant policy/document context chunks via vector search
+    const retrieval = await retrievalService.retrieveContext(searchQuestion, {
       category: categoryFilter || conversation.categoryFilter,
       department: departmentFilter || conversation.departmentFilter,
     });
 
-    // 5. Generate grounded answer combining DB records and document excerpts
+    // 6. Generate grounded answer combining DB records, document excerpts, and full conversation history
     const answerResult = await llmService.generateAnswer({
       question,
       contextChunks: retrieval.chunks,

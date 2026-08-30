@@ -90,9 +90,9 @@ Provide a direct, grounded answer adhering strictly to the verified context abov
 
     const allSources = [...databaseSources, ...this.formatSources(contextChunks)];
 
-    // Try live LLM provider
+    // Try live LLM provider with native multi-turn conversation memory
     try {
-      // 1. Google Gemini
+      // 1. Google Gemini Multi-Turn Chat
       if (
         (this.provider === 'gemini' || (this.geminiClient && this.provider !== 'openai')) &&
         this.geminiClient
@@ -102,7 +102,24 @@ Provide a direct, grounded answer adhering strictly to the verified context abov
           systemInstruction: systemPrompt,
         });
 
-        const result = await model.generateContent(userPrompt);
+        const geminiHistory = [];
+        if (Array.isArray(conversationHistory) && conversationHistory.length > 0) {
+          for (const turn of conversationHistory.slice(-6)) {
+            if (turn.message && turn.message.trim().length > 0) {
+              geminiHistory.push({
+                role: turn.sender === 'user' ? 'user' : 'model',
+                parts: [{ text: turn.message }],
+              });
+            }
+          }
+        }
+
+        const chatSession = model.startChat({
+          history: geminiHistory,
+        });
+
+        const promptToSend = `OFFICIAL VERIFIED CAMPUS CONTEXT:\n${combinedContext}\n\nSTUDENT QUESTION:\n${question}`;
+        const result = await chatSession.sendMessage(promptToSend);
         const text = result.response.text();
 
         return {
@@ -112,17 +129,32 @@ Provide a direct, grounded answer adhering strictly to the verified context abov
         };
       }
 
-      // 2. OpenAI
+      // 2. OpenAI Multi-Turn Chat
       if (
         (this.provider === 'openai' || (this.openaiClient && this.provider !== 'gemini')) &&
         this.openaiClient
       ) {
+        const openAiMessages = [{ role: 'system', content: systemPrompt }];
+
+        if (Array.isArray(conversationHistory) && conversationHistory.length > 0) {
+          for (const turn of conversationHistory.slice(-6)) {
+            if (turn.message && turn.message.trim().length > 0) {
+              openAiMessages.push({
+                role: turn.sender === 'user' ? 'user' : 'assistant',
+                content: turn.message,
+              });
+            }
+          }
+        }
+
+        openAiMessages.push({
+          role: 'user',
+          content: `OFFICIAL VERIFIED CAMPUS CONTEXT:\n${combinedContext}\n\nSTUDENT QUESTION:\n${question}`,
+        });
+
         const response = await this.openaiClient.chat.completions.create({
           model: 'gpt-4o-mini',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt },
-          ],
+          messages: openAiMessages,
           temperature: 0.2,
         });
 
