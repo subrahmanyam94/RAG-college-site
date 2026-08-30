@@ -11,11 +11,10 @@ This guide provides step-by-step instructions for deploying **CampusRAG** to pro
 
 Before deploying, ensure you have accounts for:
 1. **GitHub** (to host the repository)
-2. **MongoDB Atlas** (cloud database for users, documents, vectors, and email hub)
+2. **MongoDB Atlas** (cloud database for users, documents, vectors, and live exam results)
 3. **Render** or **Railway** (for the Node.js Express backend)
 4. **Vercel** or **Netlify** (for the React/Vite frontend)
 5. *(Optional)* **Google AI Studio** or **OpenAI** (for remote LLM and embedding API keys)
-6. *(Optional)* **Microsoft Azure Portal** (for Outlook / Microsoft 365 Graph API credentials)
 
 ---
 
@@ -41,7 +40,7 @@ Before deploying, ensure you have accounts for:
 ### Option A: Deploy on Render
 
 1. Go to [Render Dashboard](https://dashboard.render.com/) and click **New → Web Service**.
-2. Connect your GitHub repository.
+2. Connect your GitHub repository (`subrahmanyam94/RAG-college-site`).
 3. Configure the service settings:
    - **Name**: `campusrag-api`
    - **Region**: Select closest to your users (e.g., Oregon or Frankfurt)
@@ -66,10 +65,6 @@ Before deploying, ensure you have accounts for:
 | `OPENAI_API_KEY` | `sk-...` *(Optional)* | OpenAI API Key |
 | `SIMILARITY_THRESHOLD` | `0.55` (remote) or `0.08` (fallback) | Minimum cosine similarity threshold |
 | `TOP_K` | `4` | Max retrieved chunks passed to LLM |
-| `MICROSOFT_CLIENT_ID` | `<azure-app-client-id>` *(Optional)* | Outlook / Microsoft 365 OAuth client ID |
-| `MICROSOFT_CLIENT_SECRET` | `<azure-app-secret>` *(Optional)* | Outlook / Microsoft 365 OAuth client secret |
-| `OUTLOOK_REDIRECT_URI` | `https://your-api.com/api/email/outlook/callback` | OAuth redirect URI registered in Azure |
-| `DAILY_SUMMARY_CRON` | `0 8 * * *` | Automated daily email digest schedule (8 AM) |
 
 5. Click **Deploy Web Service**.
 6. Once deployed, note your public API URL (e.g., `https://campusrag-api.onrender.com`).
@@ -114,45 +109,94 @@ Before deploying, ensure you have accounts for:
 
 ---
 
-## 5. Initial Database Seeding & Verification
+## 5. Initial Database Seeding & Production Data
 
-Once both frontend and backend are live, initialize the default administrator account, student account, and institutional documents:
+Once both frontend and backend are live, initialize the default administrator account, student account, starter institutional documents, and live student exam records:
 
-### Running Seed via Remote Shell:
+### Running Seed via Remote Shell or Local Machine:
 From your local machine or through Render/Railway web console:
 ```bash
 # In the server directory with your MONGODB_URI set:
 npm run seed
 ```
 
-This will automatically create:
+This will automatically create and sync:
 - **Admin Account**: `admin@campus.edu` (Password: `AdminPassword123!`)
-- **Student Account**: `student@campus.edu` (Password: `StudentPassword123!`)
+- **Student Account**: `student@campus.edu` (Password: `StudentPassword123!`, Roll: `23CS101`)
 - **5 Starter College Documents**: Admissions Guide, Hostel Rules, Academic Regulations, Placement Policy, and Scholarship Details with vectors indexed into MongoDB.
+- **Live Student Exam Records**:
+  - **Alex Student (`23CS101`)**: Semester 4 (SGPA: 8.76, CGPA: 9.06) & Semester 5 (SGPA: 9.38, CGPA: 9.16)
+  - **Priya Sharma (`22CS104`)**: Semester 5 (SGPA: 8.94, CGPA: 8.85)
 
 ---
 
-## 6. Production Verification Checklist
+## 6. Managing & Deploying Exam Results Data
+
+CampusRAG operates as a **Hybrid RAG system**, answering queries by combining unstructured document vector search with live structured MongoDB database lookups.
+
+### Seeded Exam Results Reference:
+
+| Roll Number | Student Name | Semester | SGPA | CGPA | Key Subjects & Grades | Status |
+|:---|:---|:---:|:---:|:---:|:---|:---:|
+| **`23CS101`** | **Alex Student** *(Default Demo)* | **Sem 5** | **9.38** | **9.16** | Networks (`O`), AI (`A+`), Software Eng (`A`), Web Tech (`O`), ML Lab (`O`) | **Pass** |
+| **`23CS101`** | **Alex Student** *(Default Demo)* | **Sem 4** | **8.76** | **9.06** | Algorithms (`A+`), OS (`A`), Theory of Computation (`B+`), DBMS (`O`), Lab (`O`) | **Pass** |
+| **`22CS104`** | **Priya Sharma** | **Sem 5** | **8.94** | **8.85** | Networks (`A`), AI (`O`), Software Eng (`A+`), Web Tech (`A`), ML Lab (`O`) | **Pass** |
+
+*(For full details, see [DB_REFERENCE_SHEET.md](./DB_REFERENCE_SHEET.md))*
+
+### How to Add New Student Exam Results:
+
+#### Method A: Via REST API
+Send an authenticated `POST` request as Admin (`Bearer <token>`):
+- **Single Record**: `POST /api/results`
+- **Batch Array**: `POST /api/results/batch`
+```json
+{
+  "results": [
+    {
+      "rollNumber": "23CS105",
+      "studentName": "Rahul Verma",
+      "semester": 5,
+      "academicYear": "2025-2026",
+      "department": "Computer Science & Engineering",
+      "subjects": [
+        { "courseCode": "CS501", "courseName": "Computer Networks", "credits": 4, "marks": 88, "grade": "A+", "gradePoints": 9, "status": "Pass" },
+        { "courseCode": "CS502", "courseName": "Artificial Intelligence", "credits": 4, "marks": 95, "grade": "O", "gradePoints": 10, "status": "Pass" }
+      ],
+      "totalCredits": 8,
+      "earnedCredits": 8,
+      "sgpa": 9.50,
+      "cgpa": 9.20,
+      "resultStatus": "Pass"
+    }
+  ]
+}
+```
+
+#### Method B: Direct in MongoDB Atlas
+Navigate to **MongoDB Atlas → Browse Collections → campusrag → examresults → Insert Document**.
+
+---
+
+## 7. Production Verification Checklist
 
 - [ ] **Health Check**: `GET https://your-api.com/api/health` returns `{"status":"healthy", "database":{"mongodb":"connected"}}`.
-- [ ] **Authentication**: Open frontend URL, click **Sign In**, and log in with the demo student or demo admin account.
-- [ ] **RAG Grounding**: Ask *"What are the hostel curfew hours?"* — verify answer generates with citations and expandable source card.
+- [ ] **Authentication**: Open frontend URL, click **Sign In**, and log in with demo student (`student@campus.edu` / `StudentPassword123!`).
+- [ ] **Live DB Exam Grounding**: Ask *"Show my semester 5 exam results & SGPA"* — verify response formats a subject breakdown table with SGPA `9.38`, CGPA `9.16`, and an emerald **"Live DB Record" (100% DB Exact)** source citation.
+- [ ] **Peer Student Lookup**: Ask *"What is the result for roll number 22CS104?"* — verify Priya Sharma's transcript is retrieved.
+- [ ] **Document Vector Grounding**: Ask *"What are the hostel curfew hours?"* — verify answer generates from official circulars with citations.
 - [ ] **Zero-Hallucination Fallback**: Ask *"How do I bake a pepperoni pizza?"* — verify the system returns an explicit "not found in verified documents" notice with `foundAnswer: false`.
 - [ ] **Document Ingestion**: As Admin, navigate to `/admin/documents` and upload a PDF or DOCX file. Verify status progresses from `uploaded` → `processing` → `indexed`.
-- [ ] **Telemetry Dashboard**: Check `/admin/dashboard` to confirm total indexed documents and vector chunk counts match Atlas database entries.
 
 ---
 
-## 7. Troubleshooting & FAQ
+## 8. Troubleshooting & FAQ
 
 ### 1. CORS Errors (`Blocked by CORS policy`)
 Ensure `CLIENT_URL` on your backend matches the frontend domain without a trailing slash (e.g., `https://campusrag.vercel.app`).
 
-### 2. File Uploads on Ephemeral Disks (Render/Vercel Free Tier)
-Render free tier instances have ephemeral storage. For long-term physical document storage in production, documents can be configured with an AWS S3 or Cloudinary bucket in [uploadMiddleware.js](file:///c:/Users/spartan/Desktop/own%20project/server/src/middleware/uploadMiddleware.js). Note that vector embeddings and extracted chunk texts are permanently stored in MongoDB, so RAG queries remain fully functional even if disk files reset.
-
-### 3. Activating Live Google Gemini or OpenAI Models
-To transition from local semantic fallback to neural LLM reasoning:
-1. Add `GEMINI_API_KEY` or `OPENAI_API_KEY` to your backend environment variables.
-2. Set `EMBEDDING_PROVIDER=gemini` and `LLM_PROVIDER=gemini` (or `openai`).
-3. Re-index documents from `/admin/documents` to update vector dimensions.
+### 2. Live Generative Neural LLM Reasoning
+To transition from local grounded synthesis to neural Gemini/OpenAI reasoning:
+1. Add `GEMINI_API_KEY` (starts with `AIzaSy...` from [Google AI Studio](https://aistudio.google.com/app/apikey)) to your Render environment variables.
+2. Set `EMBEDDING_PROVIDER=gemini` and `LLM_PROVIDER=gemini`.
+3. Re-index documents from `/admin/documents`.
