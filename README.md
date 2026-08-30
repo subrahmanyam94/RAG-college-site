@@ -9,9 +9,18 @@ Every answer is strictly verifiable with interactive source citations, page numb
 ## 🌟 Key Features
 
 ### 🎓 Live Student Exam Results & Academic Database (Structured RAG)
-- **Direct Database Lookups**: Students can ask *"Show my semester 5 results"*, *"What is my CGPA?"*, or *"Check grades for roll 23CS101"*, and the system queries the live MongoDB transactional database directly.
+- **Direct Database Lookups**: Students can ask *"Show my semester 5 results"*, *"What is my CGPA?"*, *"In which subject did I top?"*, or *"Check grades for roll 23CS101"*, and the system queries the live MongoDB transactional database directly.
 - **Subject-Wise Grade Breakdown**: Automatically formats complete semester performance tables including Course Code, Course Name, Credits, Marks, Letter Grades (`O`, `A+`, `A`, `B+`, `B`, `C`, `F`), Grade Points, SGPA, CGPA, and Controller of Examinations declaration status.
+- **Analytical Reasoning Engine**: Analyzes academic records to answer questions like *"In which subject did I top?"*, *"What was my lowest score?"*, or *"How much did I get in AI?"* with subject leaderboards and GPA rankings.
 - **Dual Citation Badges**: Renders a distinct **"Live DB Record" (100% DB Exact)** emerald citation card for database records alongside standard document vector source cards.
+
+### 📊 Admin Marks Sheet & Tabulation Management (`/admin/results`)
+- **CSV Marks Sheet Upload**: Upload official university marks sheets (CSV) or paste spreadsheet text directly. The engine automatically parses subjects, groups them by student roll number, and indexes them in MongoDB.
+- **Auto-Grading & GPA Engine**: Automatically calculates letter grades (`O` through `F`), Grade Points (`10` to `0`), Credits, SGPA, CGPA, and Pass/Fail status from raw marks.
+- **Sample CSV Template Download**: 1-click download button for standard tabulation sheet templates (`campus_marks_sheet_template.csv`).
+- **Live Database Records Table**: Filter by Semester (Sem 1 to Sem 8), search by Roll Number or Student Name, and expand rows to view individual subject breakdowns.
+- **Manual Result Entry**: Form to add or edit individual student transcripts with dynamic subject rows.
+- **Live Chat Test Verification Box**: Instant query console on the admin page to verify chat retrieval for newly uploaded marks sheets.
 
 ### 🧠 Grounded Institutional RAG Pipeline (Unstructured Vector Search)
 - **Strict Fact Verification**: Queries are embedded and evaluated against stored document chunks using cosine similarity vector search. Responses are synthesized solely from retrieved institutional context.
@@ -28,7 +37,7 @@ Every answer is strictly verifiable with interactive source citations, page numb
 - **Hybrid Embedding Engines**: Out-of-the-box support for **Google Gemini** (`text-embedding-004`), **OpenAI** (`text-embedding-3-small`), and a deterministic high-dimensional semantic feature embedder for instant zero-API-key offline execution.
 
 ### 💬 Multi-Turn Conversation History
-- **Contextual Continuity**: Maintains multi-turn dialog memory so students can ask contextual follow-up questions.
+- **Contextual Continuity**: Maintains multi-turn dialog memory with native chat sessions for Gemini/OpenAI and contextual query expansion so students can ask follow-up questions (*"What is the fine for it?"*, *"Did she pass AI?"*).
 - **Persistent Archive**: Searchable conversation sessions stored in MongoDB with full message turns, citations, and latency telemetry.
 
 ### 🏛️ Admin Telemetry & Document Management
@@ -54,9 +63,9 @@ For a complete cheat sheet of all seeded documents, student accounts, roll numbe
 
 ## 🏗️ Architecture & Tech Stack
 
-- **Frontend**: React 19 + Vite + Tailwind CSS + Zustand + React Markdown + Lucide Icons + React Dropzone
+- **Frontend**: React 19 + Vite + Tailwind CSS + Zustand + React Markdown + Remark GFM + Lucide Icons + React Dropzone
 - **Theme & Styling**: Modern Desert-Yellow (`#EAB308`), Sunset Orange (`#EA580C`), and Warm Sand Backdrop (`#FAF7F0`)
-- **Backend Server**: Node.js + Express.js + Helmet + Rate Limit + Express-Validator + Multer
+- **Backend Server**: Node.js + Express.js + Helmet + Rate Limit + Express-Validator + Multer (CSV & Document parsers)
 - **Database**: MongoDB Atlas / Mongoose (Collections: `users`, `examresults`, `documents`, `documentchunks`, `conversations`, `messages`)
 - **Vector Engine**: Native MongoDB Cosine Vector Store with dynamic fallback calibration
 - **Security**: Password hashing with bcryptjs (cost 12), JWT session handling with role-based access control (`student` vs. `admin`), and scoped CORS
@@ -126,7 +135,7 @@ npm run dev -- --port 5173
 | Role | Email | Password | Linked Roll No | Permissions |
 |:---|:---|:---|:---:|:---|
 | **Student** | `student@campus.edu` | `StudentPassword123!` | `23CS101` | Chat assistant, exam results lookups, citations |
-| **Admin** | `admin@campus.edu` | `AdminPassword123!` | — | Dashboard telemetry, document uploads, chunk inspector, reindexing |
+| **Admin** | `admin@campus.edu` | `AdminPassword123!` | — | Dashboard telemetry, document uploads, marks sheet management, reindexing |
 
 ---
 
@@ -134,12 +143,14 @@ npm run dev -- --port 5173
 
 ### 🎓 Live Database Lookups (Exam Results & Transcripts):
 - *"Show my semester 5 exam results & SGPA"*
-- *"What is my current CGPA and subject grades?"*
+- *"In which subject did I top?"* *(Identifies top subject with rank breakdown)*
+- *"What was my lowest score?"*
+- *"How much did I get in artificial intelligence?"*
 - *"What is the exam result and CGPA for roll number 22CS104?"*
-- *"What did I score in Database Management Systems in semester 4?"*
 
 ### 📑 Official Document Vector Retrieval:
 - *"What are the hostel curfew hours and late entry rules?"*
+- *"What is the fine if I enter late?"* *(Follow-up context)*
 - *"Explain the placement policy and dream company offer criteria."*
 - *"What is the minimum attendance required for final exams?"*
 - *"How do I qualify for merit-based scholarships or financial aid?"*
@@ -161,7 +172,10 @@ npm run dev -- --port 5173
 - `GET /api/auth/me` – Fetch current user profile.
 - `POST /api/auth/change-password` – Update user account password.
 
-### Live Exam Results Database
+### Live Exam Results & Marks Sheets
+- `GET /api/results` – Get all student exam records (with search, semester filtering, and pagination) *(Admin only)*.
+- `POST /api/results/upload-sheet` – Upload CSV marks sheet file or raw text with auto-grading *(Admin only)*.
+- `GET /api/results/template/csv` – Download sample CSV marks sheet template.
 - `GET /api/results/my-results` – Fetch authenticated student's semester results.
 - `GET /api/results/lookup/:rollNumber` – Look up public student results by Roll Number.
 - `POST /api/results` – Create or update a student exam record *(Admin only)*.
@@ -202,7 +216,7 @@ npm run dev -- --port 5173
 │       ├── controllers/
 │       │   ├── authController.js          # Authentication controller
 │       │   ├── documentController.js      # Document management controller
-│       │   ├── examResultController.js    # Student exam results controller
+│       │   ├── examResultController.js    # Student exam results & CSV sheet controller
 │       │   └── chatController.js          # RAG chat & query controller
 │       ├── middleware/
 │       │   ├── authMiddleware.js          # requireAuth & requireAdmin guards
@@ -220,15 +234,15 @@ npm run dev -- --port 5173
 │       ├── routes/
 │       │   ├── authRoutes.js              # /api/auth routes
 │       │   ├── documentRoutes.js          # /api/documents routes
-│       │   ├── examResultRoutes.js        # /api/results routes
+│       │   ├── examResultRoutes.js        # /api/results routes (CSV upload, batch, template)
 │       │   └── chatRoutes.js              # /api/chat routes
 │       ├── services/
 │       │   ├── authService.js             # User authentication logic
-│       │   ├── examResultService.js       # Live student database retrieval & formatting
+│       │   ├── examResultService.js       # Live student database retrieval & entity extraction
 │       │   ├── ingestionService.js        # PDF/DOCX extraction & sliding chunking
 │       │   ├── embeddingService.js        # Multi-provider vector embedding generator
 │       │   ├── retrievalService.js        # Cosine similarity retrieval & gating
-│       │   ├── llmService.js              # Hybrid grounded synthesis & fallback engine
+│       │   ├── llmService.js              # Analytical reasoning & grounded synthesis engine
 │       │   ├── documentService.js         # Document lifecycle orchestrator
 │       │   └── chatService.js             # Chat persistence & hybrid query orchestrator
 │       ├── scripts/
@@ -247,7 +261,7 @@ npm run dev -- --port 5173
         │   └── utils.js                   # Category styling, dates, & formatting
         ├── components/
         │   ├── ChatWindow/                # Hybrid RAG chat console with suggestions
-        │   ├── MessageBubble/             # Markdown bubble with verified citations
+        │   ├── MessageBubble/             # Markdown bubble with remark-gfm table rendering
         │   ├── SourceReferenceCard/       # Expandable citation card (DB & Document badges)
         │   ├── AppShell/                  # Navbar, Sidebar, AppShell
         │   ├── DocumentUploadPanel/       # Drag-and-drop file upload component
@@ -257,7 +271,8 @@ npm run dev -- --port 5173
             ├── LoginPage.jsx              # Login with 1-click demo accounts
             ├── ChatPage.jsx               # Interactive hybrid RAG query console
             ├── AdminDashboardPage.jsx     # Institutional metrics
-            └── AdminDocumentsPage.jsx     # Document manager & chunk inspector
+            ├── AdminDocumentsPage.jsx     # Document manager & chunk inspector
+            └── AdminResultsPage.jsx       # Marks sheets upload, CSV parser & table manager
 ```
 
 ---
