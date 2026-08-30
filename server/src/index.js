@@ -91,6 +91,11 @@ app.use('/api/auth', authRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/chat', chatRoutes);
 
+// Route aliases (in case requests are sent without /api prefix)
+app.use('/auth', authRoutes);
+app.use('/documents', documentRoutes);
+app.use('/chat', chatRoutes);
+
 // 404 Route
 app.use('*', (req, res) => {
   res.status(404).json({
