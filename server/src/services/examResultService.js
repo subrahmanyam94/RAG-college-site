@@ -27,13 +27,16 @@ class ExamResultService {
     const combinedText = `${historyText} ${query}`.toLowerCase();
 
     // Strict word-boundary intent detection for student academic / exam records
-    const hasDirectExamTerms = /\b(result|results|grade|grades|marks|cgpa|sgpa|gpa|transcript|score card|marksheet|hall ticket)\b/i.test(cleanQuery);
-    const hasAcademicFollowUp =
-      /\b(score|scores|passed|failed|credits)\b/i.test(cleanQuery) &&
-      /\b(semester|sem|subject|exam|course)\b/i.test(combinedText);
+    const hasDirectExamTerms = /\b(result|results|grade|grades|marks|mark|cgpa|sgpa|gpa|transcript|score card|marksheet|hall ticket|topped|top|highest|lowest|best|worst|maximum|minimum|rank|score|scores|passed|failed|backlog|backlogs|arrear|arrears|credit|credits)\b/i.test(cleanQuery);
+    const hasSubjectOrPerformanceQuery =
+      /\b(subject|subjects|course|courses|paper|papers|topped|top|highest|lowest|best|worst|score|marks|mark|passed|failed|performance|study|exam|rank|how much|what did i get|got in|score in|grade in)\b/i.test(cleanQuery) &&
+      (historyText.length > 0 || /\b(semester|sem|cs[0-9]{3}|exam|results|grade|marks|23cs|22cs)\b/i.test(combinedText));
+    const hasSubjectNameInContext =
+      /\b(artificial intelligence|computer networks|software engineering|web technologies|machine learning|dbms|operating systems|data structures|algorithms|theory of computation|lab|cs[0-9]{3})\b/i.test(cleanQuery) &&
+      (historyText.includes('result') || historyText.includes('sem') || historyText.includes('exam') || historyText.includes('23cs') || cleanQuery.includes('get') || cleanQuery.includes('score'));
     const hasRollLookup = /\b([0-9]{2}[A-Z]{2,4}[0-9]{3,4})\b/i.test(cleanQuery);
 
-    const isExamQuery = hasDirectExamTerms || hasAcademicFollowUp || hasRollLookup;
+    const isExamQuery = hasDirectExamTerms || hasSubjectOrPerformanceQuery || hasSubjectNameInContext || hasRollLookup;
 
     if (!isExamQuery) {
       return { hasDbRecords: false, records: [], contextText: '', sources: [] };

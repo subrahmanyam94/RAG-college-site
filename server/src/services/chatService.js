@@ -62,6 +62,7 @@ class ChatService {
       question,
       contextChunks: retrieval.chunks,
       databaseContext: examDbResult.contextText,
+      databaseRecords: examDbResult.records,
       databaseSources: examDbResult.sources,
       conversationHistory: history,
     });

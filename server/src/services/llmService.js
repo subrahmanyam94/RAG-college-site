@@ -27,6 +27,7 @@ class LLMService {
     question,
     contextChunks = [],
     databaseContext = '',
+    databaseRecords = [],
     databaseSources = [],
     conversationHistory = [],
   }) {
@@ -171,41 +172,176 @@ Provide a direct, grounded answer adhering strictly to the verified context abov
       );
     }
 
-    // 3. Built-in Grounded Synthesizer (for zero-API-key development and offline testing)
-    return this.synthesizeGroundedAnswer(question, contextChunks, databaseContext, databaseSources);
+    // 3. Built-in Grounded Synthesizer with analytical reasoning (for zero-API-key development and offline testing)
+    return this.synthesizeGroundedAnswer({
+      question,
+      chunks: contextChunks,
+      databaseContext,
+      databaseRecords,
+      databaseSources,
+      conversationHistory,
+    });
   }
 
   /**
-   * Synthesizes an accurate, grounded answer from database records and top matching chunks
+   * Synthesizes an accurate, grounded answer with analytical reasoning from database records and top matching chunks
    */
-  synthesizeGroundedAnswer(question, chunks = [], databaseContext = '', databaseSources = []) {
+  synthesizeGroundedAnswer({
+    question,
+    chunks = [],
+    databaseContext = '',
+    databaseRecords = [],
+    databaseSources = [],
+    conversationHistory = [],
+  }) {
     let formattedAnswer = '';
     const allSources = [...databaseSources, ...this.formatSources(chunks)];
+    const cleanQ = question.toLowerCase();
 
-    if (databaseContext && databaseContext.trim().length > 0) {
-      formattedAnswer += `${databaseContext}\n\n`;
+    // =========================================================================
+    // 1. ANALYTICAL DATABASE REASONING (EXAM RECORDS & STUDENT PERFORMANCE)
+    // =========================================================================
+    if (databaseRecords && databaseRecords.length > 0) {
+      // Pick the relevant semester record (newest or specifically requested)
+      const record = databaseRecords[databaseRecords.length - 1];
+      const subjects = record.subjects || [];
 
-      if (chunks && chunks.length > 0) {
-        const topChunk = chunks[0];
-        formattedAnswer += `#### 📋 Applicable Academic Regulations (${topChunk.documentTitle || 'Academic Policy'}):\n`;
-        formattedAnswer += `> ${topChunk.text.trim().slice(0, 240)}...\n\n`;
+      // A. "In which subject did I top / score highest / max marks?"
+      const isTopQuery = /\b(top|topped|highest|best|max|maximum|most|greatest|peak)\b/i.test(cleanQ) &&
+        /\b(subject|course|paper|marks|mark|grade|score|scored|topped|top|in which)\b/i.test(cleanQ);
+
+      // B. "In which subject did I score lowest / least marks?"
+      const isLowestQuery = /\b(lowest|least|minimum|min|worst|weakest|lowest mark|least mark)\b/i.test(cleanQ) &&
+        /\b(subject|course|paper|marks|mark|grade|score|scored)\b/i.test(cleanQ);
+
+      // C. Specific subject lookup (e.g., "How much did I get in AI / Networks / CS501?")
+      const matchedSubject = subjects.find((s) => {
+        const codeMatch = cleanQ.includes(s.courseCode.toLowerCase());
+        const nameTokens = s.courseName.toLowerCase().split(/[\s&/,-]+/).filter((w) => w.length > 3);
+        const nameMatch = nameTokens.some((token) => cleanQ.includes(token));
+        const acronymMatch =
+          (cleanQ.includes('ai') && s.courseCode === 'CS502') ||
+          (cleanQ.includes('ml') && s.courseCode === 'CS505') ||
+          (cleanQ.includes('dbms') && s.courseCode === 'CS404') ||
+          (cleanQ.includes('os') && s.courseCode === 'CS402') ||
+          (cleanQ.includes('networks') && s.courseCode === 'CS501') ||
+          (cleanQ.includes('software') && s.courseCode === 'CS503') ||
+          (cleanQ.includes('web') && s.courseCode === 'CS504');
+        return codeMatch || nameMatch || acronymMatch;
+      });
+
+      // D. GPA / SGPA / CGPA inquiry
+      const isGpaOnlyQuery = /\b(what is my cgpa|what is my sgpa|my gpa|my sgpa|my cgpa|current cgpa|current gpa)\b/i.test(cleanQ);
+
+      // E. Pass / Fail / Backlog inquiry
+      const isPassFailQuery = /\b(did i pass|have i passed|any backlogs|any arrears|pass or fail|passed all)\b/i.test(cleanQ);
+
+      if (isTopQuery) {
+        const sortedDesc = [...subjects].sort((a, b) => b.marks - a.marks);
+        const topSub = sortedDesc[0];
+
+        formattedAnswer += `### 🏆 Academic Achievement – Highest Scored Subject\n\n`;
+        formattedAnswer += `Based on your official **Semester ${record.semester}** examination records for **${record.studentName}** (\`${record.rollNumber}\`):\n\n`;
+        formattedAnswer += `You topped in **${topSub.courseName} (\`${topSub.courseCode}\`)** with **${topSub.marks}/100 marks** (Grade: **\`${topSub.grade}\`**, Grade Points: \`${topSub.gradePoints}\`, Credits: \`${topSub.credits}\`).\n\n`;
+        formattedAnswer += `#### 📊 Subject Performance Ranking (Highest to Lowest):\n\n`;
+        formattedAnswer += `| Rank | Course Code | Subject Title | Marks (/100) | Grade | Status |\n`;
+        formattedAnswer += `|:---:|:---|:---|:---:|:---:|:---:|\n`;
+        sortedDesc.forEach((s, idx) => {
+          const medal = idx === 0 ? '🥇 ' : idx === 1 ? '🥈 ' : idx === 2 ? '🥉 ' : '';
+          formattedAnswer += `| ${medal}${idx + 1} | \`${s.courseCode}\` | ${s.courseName} | **${s.marks}** | **${s.grade}** | ${s.status === 'Pass' ? '✅ Pass' : '❌ Fail'} |\n`;
+        });
+        formattedAnswer += `\n**📈 Semester ${record.semester} Summary**: SGPA: **\`${record.sgpa.toFixed(2)}\`** | CGPA: **\`${record.cgpa.toFixed(2)}\`**\n`;
+      } else if (isLowestQuery) {
+        const sortedAsc = [...subjects].sort((a, b) => a.marks - b.marks);
+        const lowestSub = sortedAsc[0];
+
+        formattedAnswer += `### 📊 Subject Performance Analysis – Lowest Scored Subject\n\n`;
+        formattedAnswer += `Based on your official **Semester ${record.semester}** examination records for **${record.studentName}** (\`${record.rollNumber}\`):\n\n`;
+        formattedAnswer += `Your lowest score was in **${lowestSub.courseName} (\`${lowestSub.courseCode}\`)** with **${lowestSub.marks}/100 marks** (Grade: **\`${lowestSub.grade}\`**, Status: **${lowestSub.status}**).\n\n`;
+        formattedAnswer += `#### 📋 All Subject Marks:\n\n`;
+        formattedAnswer += `| Course Code | Subject Title | Marks | Grade | Status |\n`;
+        formattedAnswer += `|:---|:---|:---:|:---:|:---:|\n`;
+        sortedAsc.forEach((s) => {
+          formattedAnswer += `| \`${s.courseCode}\` | ${s.courseName} | **${s.marks}** | **${s.grade}** | ${s.status === 'Pass' ? '✅ Pass' : '❌ Fail'} |\n`;
+        });
+        formattedAnswer += `\n**📈 Semester ${record.semester} Summary**: SGPA: **\`${record.sgpa.toFixed(2)}\`** | CGPA: **\`${record.cgpa.toFixed(2)}\`**\n`;
+      } else if (matchedSubject) {
+        formattedAnswer += `### 📖 Subject Score Details – ${matchedSubject.courseCode}\n\n`;
+        formattedAnswer += `For **${record.studentName}** (\`${record.rollNumber}\`) in **Semester ${record.semester}**:\n\n`;
+        formattedAnswer += `- **Course Code**: \`${matchedSubject.courseCode}\`\n`;
+        formattedAnswer += `- **Course Name**: **${matchedSubject.courseName}**\n`;
+        formattedAnswer += `- **Marks Obtained**: **\`${matchedSubject.marks} / 100\`**\n`;
+        formattedAnswer += `- **Letter Grade**: **\`${matchedSubject.grade}\`** (Grade Points: \`${matchedSubject.gradePoints}\`)\n`;
+        formattedAnswer += `- **Course Credits**: \`${matchedSubject.credits}\`\n`;
+        formattedAnswer += `- **Result Status**: **\`${matchedSubject.status}\`** ✅\n\n`;
+        formattedAnswer += `> *Overall Semester ${record.semester} SGPA is **${record.sgpa.toFixed(2)}** and cumulative CGPA is **${record.cgpa.toFixed(2)}**.*`;
+      } else if (isGpaOnlyQuery) {
+        formattedAnswer += `### 🎓 Grade Point Average (GPA) Report\n\n`;
+        formattedAnswer += `For student **${record.studentName}** (Roll Number: \`${record.rollNumber}\`):\n\n`;
+        databaseRecords.forEach((r) => {
+          formattedAnswer += `- **Semester ${r.semester}**: SGPA **\`${r.sgpa.toFixed(2)}\`** (Earned \`${r.earnedCredits}/${r.totalCredits}\` Credits, Result: **${r.resultStatus}**)\n`;
+        });
+        formattedAnswer += `\n**🎯 Cumulative Grade Point Average (CGPA)**: **\`${record.cgpa.toFixed(2)}\`**\n`;
+        formattedAnswer += `**Overall Academic Status**: **\`${record.resultStatus}\`**\n`;
+      } else if (isPassFailQuery) {
+        const allPassed = subjects.every((s) => s.status === 'Pass');
+        formattedAnswer += `### ✅ Semester Result & Backlog Status\n\n`;
+        formattedAnswer += `For **${record.studentName}** (\`${record.rollNumber}\`) in **Semester ${record.semester}**:\n\n`;
+        if (allPassed) {
+          formattedAnswer += `You have **passed all ${subjects.length} registered subjects** with **zero (0) backlogs / arrears**!\n\n`;
+          formattedAnswer += `- **Semester GPA (SGPA)**: **\`${record.sgpa.toFixed(2)}\`**\n`;
+          formattedAnswer += `- **Cumulative GPA (CGPA)**: **\`${record.cgpa.toFixed(2)}\`**\n`;
+          formattedAnswer += `- **Total Credits Earned**: \`${record.earnedCredits} / ${record.totalCredits}\`\n`;
+          formattedAnswer += `- **Final Status**: **\`${record.resultStatus}\`**\n`;
+        } else {
+          formattedAnswer += `You have uncleared arrears in one or more subjects. Overall status: **\`${record.resultStatus}\`**.\n`;
+        }
+      } else {
+        // Default: Full Formatted Report Table
+        formattedAnswer += `${databaseContext}\n\n`;
       }
 
-      formattedAnswer += `> *Official Record Verified & Sealed by the Office of the Controller of Examinations.*`;
-    } else {
+      formattedAnswer += `\n> *Official Record Verified & Sealed by the Office of the Controller of Examinations.*`;
+    }
+
+    // =========================================================================
+    // 2. DOCUMENT REASONING & EXTRACTION (POLICIES, HOSTEL, PLACEMENT, ETC.)
+    // =========================================================================
+    else if (chunks && chunks.length > 0) {
       const topChunk = chunks[0];
       const docTitle = topChunk.documentTitle || 'College Document';
       const pageRef = topChunk.pageNumber ? ` (Page ${topChunk.pageNumber})` : '';
 
       formattedAnswer = `Based on the official institutional records in **${docTitle}**${pageRef}:\n\n`;
 
-      const lines = chunks
-        .slice(0, 3)
-        .map((c) => c.text.trim())
-        .filter((t) => t.length > 20);
+      // Extract high-relevance paragraphs matching query terms
+      const queryTokens = cleanQ.split(/[\s?,.:;"']+/).filter((w) => w.length > 3);
+      const paragraphs = chunks
+        .flatMap((c) => c.text.split('\n\n'))
+        .map((p) => p.trim())
+        .filter((p) => p.length > 25);
 
-      formattedAnswer += lines.join('\n\n') + '\n\n';
-      formattedAnswer += `> *Please verify with the official ${topChunk.category || 'Department'} office for any recent amendments or individual exemptions.*`;
+      const scoredParagraphs = paragraphs.map((p) => {
+        const pLower = p.toLowerCase();
+        let score = 0;
+        for (const token of queryTokens) {
+          if (pLower.includes(token)) score += 2;
+        }
+        return { text: p, score };
+      });
+
+      scoredParagraphs.sort((a, b) => b.score - a.score);
+      const topParagraphs = scoredParagraphs.slice(0, 3).map((sp) => sp.text);
+
+      if (topParagraphs.length > 0) {
+        formattedAnswer += topParagraphs.join('\n\n') + '\n\n';
+      } else {
+        formattedAnswer += chunks.slice(0, 2).map((c) => c.text.trim()).join('\n\n') + '\n\n';
+      }
+
+      formattedAnswer += `> *Please verify with the official ${topChunk.category || 'Administration'} desk for any individual amendments or exemptions.*`;
+    } else {
+      return this.getFallbackResponse(question);
     }
 
     return {
