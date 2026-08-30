@@ -1,18 +1,35 @@
 const express = require('express');
+const multer = require('multer');
 const { param, body } = require('express-validator');
 const examResultController = require('../controllers/examResultController');
 const { requireAuth, requireAdmin } = require('../middleware/authMiddleware');
 
 const router = express.Router();
+const csvUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 // Current student authenticated results
 router.get('/my-results', requireAuth, examResultController.getMyResults);
+
+// Sample CSV Template download
+router.get('/template/csv', examResultController.getSampleTemplate);
 
 // Public / Department lookup by roll number
 router.get(
   '/lookup/:rollNumber',
   [param('rollNumber').trim().notEmpty().withMessage('Roll number is required')],
   examResultController.lookupByRoll
+);
+
+// Admin: Get all student exam records (with search & semester filtering)
+router.get('/', requireAuth, requireAdmin, examResultController.getAllResults);
+
+// Admin: Upload and parse CSV marks sheet
+router.post(
+  '/upload-sheet',
+  requireAuth,
+  requireAdmin,
+  csvUpload.single('sheet'),
+  examResultController.uploadSheet
 );
 
 // Admin: Insert or update single exam result

@@ -4,6 +4,7 @@ import {
   History,
   LayoutDashboard,
   Files,
+  FileSpreadsheet,
   Settings,
   Shield,
   GraduationCap,
@@ -35,6 +36,7 @@ export default function Sidebar({ currentPath }) {
             items: [
               { path: '/admin/dashboard', label: 'Analytics Dashboard', icon: LayoutDashboard },
               { path: '/admin/documents', label: 'Document Base', icon: Files },
+              { path: '/admin/results', label: 'Marks & Exam Sheets', icon: FileSpreadsheet },
             ],
           },
         ]

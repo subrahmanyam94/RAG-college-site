@@ -11,6 +11,7 @@ import ChatHistoryPage from './pages/ChatHistoryPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import AdminDocumentsPage from './pages/AdminDocumentsPage';
 import AdminDocumentDetailPage from './pages/AdminDocumentDetailPage';
+import AdminResultsPage from './pages/AdminResultsPage';
 import SettingsPage from './pages/SettingsPage';
 
 export default function App() {
@@ -80,6 +81,14 @@ export default function App() {
     return (
       <ProtectedRoute adminOnly={true}>
         <AdminDocumentsPage />
+      </ProtectedRoute>
+    );
+  }
+
+  if (path === '/admin/results') {
+    return (
+      <ProtectedRoute adminOnly={true}>
+        <AdminResultsPage />
       </ProtectedRoute>
     );
   }
