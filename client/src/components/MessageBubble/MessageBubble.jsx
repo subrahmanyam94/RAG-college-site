@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { User, Sparkles, AlertTriangle, ShieldCheck, Clock } from 'lucide-react';
 import SourceReferenceCard from '../SourceReferenceCard/SourceReferenceCard';
 
@@ -44,7 +45,7 @@ export default function MessageBubble({ message }) {
           )}
 
           <div className="markdown-content max-w-none text-slate-800">
-            <ReactMarkdown>{message.message}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.message}</ReactMarkdown>
           </div>
 
           {/* Latency & Grounding Badge */}

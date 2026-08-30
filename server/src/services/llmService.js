@@ -151,17 +151,15 @@ Provide a direct, grounded answer adhering strictly to the verified context abov
     const allSources = [...databaseSources, ...this.formatSources(chunks)];
 
     if (databaseContext && databaseContext.trim().length > 0) {
-      formattedAnswer += `### 🎓 Official Student Examination & Academic Record\n\n`;
-      formattedAnswer += `Directly retrieved from the **MongoDB Student Database & Controller of Examinations Records**:\n\n`;
       formattedAnswer += `${databaseContext}\n\n`;
 
       if (chunks && chunks.length > 0) {
         const topChunk = chunks[0];
         formattedAnswer += `#### 📋 Applicable Academic Regulations (${topChunk.documentTitle || 'Academic Policy'}):\n`;
-        formattedAnswer += `${topChunk.text.trim().slice(0, 300)}...\n\n`;
+        formattedAnswer += `> ${topChunk.text.trim().slice(0, 240)}...\n\n`;
       }
 
-      formattedAnswer += `> *Note: This transcript is verified and sealed by the Office of the Controller of Examinations.*`;
+      formattedAnswer += `> *Official Record Verified & Sealed by the Office of the Controller of Examinations.*`;
     } else {
       const topChunk = chunks[0];
       const docTitle = topChunk.documentTitle || 'College Document';

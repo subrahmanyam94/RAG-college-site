@@ -99,25 +99,29 @@ class ExamResultService {
    * Format records into authoritative Markdown and structured prompts
    */
   formatRecordsForPrompt(records) {
-    let output = `[OFFICIAL MONGODB DATABASE RECORDS - EXAM CONTROLLER ARCHIVE]\n`;
+    let output = '';
 
     for (const r of records) {
-      output += `\n=== STUDENT ACADEMIC RECORD (SEMESTER ${r.semester}) ===\n`;
-      output += `- Student Name: ${r.studentName}\n`;
-      output += `- Roll / Hall Ticket No: ${r.rollNumber}\n`;
-      output += `- Department: ${r.department}\n`;
-      output += `- Academic Year: ${r.academicYear} | Examination Type: ${r.examinationType}\n`;
-      output += `- Total Credits Registered: ${r.totalCredits} | Earned: ${r.earnedCredits}\n`;
-      output += `- Semester Grade Point Average (SGPA): ${r.sgpa.toFixed(2)}\n`;
-      output += `- Cumulative Grade Point Average (CGPA): ${r.cgpa.toFixed(2)}\n`;
-      output += `- Final Result: ${r.resultStatus}\n`;
-      output += `\nSUBJECT-WISE PERFORMANCE BREAKDOWN:\n`;
-      output += `| Course Code | Course Name | Credits | Marks (/100) | Grade | Grade Points | Status |\n`;
-      output += `|---|---|---|---|---|---|---|\n`;
+      output += `### 🎓 Academic Performance Report – Semester ${r.semester}\n\n`;
+      output += `| Student Name | Roll / Hall Ticket No | Department | Academic Year | Semester | Result |\n`;
+      output += `|---|---|---|---|---|---|\n`;
+      output += `| **${r.studentName}** | \`${r.rollNumber}\` | ${r.department} | ${r.academicYear} | **Semester ${r.semester}** | **${r.resultStatus}** |\n\n`;
 
-      for (const s of r.subjects) {
-        output += `| ${s.courseCode} | ${s.courseName} | ${s.credits} | ${s.marks} | ${s.grade} | ${s.gradePoints} | ${s.status} |\n`;
-      }
+      output += `#### 📊 Subject-Wise Marks & Grade Breakdown:\n\n`;
+      output += `| S.No | Course Code | Course Name | Credits | Marks (/100) | Grade | Grade Points | Status |\n`;
+      output += `|:---:|:---|:---|:---:|:---:|:---:|:---:|:---:|\n`;
+
+      r.subjects.forEach((s, idx) => {
+        const gradeBadge = s.grade === 'O' || s.grade === 'A+' ? `**${s.grade}**` : s.grade;
+        const statusBadge = s.status === 'Pass' ? '✅ Pass' : '❌ Fail';
+        output += `| ${idx + 1} | \`${s.courseCode}\` | ${s.courseName} | ${s.credits} | **${s.marks}** | ${gradeBadge} | ${s.gradePoints} | ${statusBadge} |\n`;
+      });
+
+      output += `\n**📈 Semester Academic Summary:**\n`;
+      output += `- **Total Registered Credits**: \`${r.totalCredits}\` | **Earned Credits**: \`${r.earnedCredits}\`\n`;
+      output += `- **Semester GPA (SGPA)**: **\`${r.sgpa.toFixed(2)}\`**\n`;
+      output += `- **Cumulative GPA (CGPA)**: **\`${r.cgpa.toFixed(2)}\`**\n`;
+      output += `- **Status**: **\`${r.resultStatus}\`** (${r.examinationType})\n`;
     }
 
     return output;

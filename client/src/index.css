@@ -108,3 +108,69 @@
   color: #9A3412;
   border: 1px solid #FDE68A;
 }
+
+/* Headings */
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4 {
+  font-weight: 700;
+  color: #1E293B;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  line-height: 1.35;
+}
+
+.markdown-content h1 { font-size: 1.35rem; }
+.markdown-content h2 { font-size: 1.2rem; }
+.markdown-content h3 { font-size: 1.05rem; }
+.markdown-content h4 { font-size: 0.95rem; }
+
+/* Beautiful Markdown Tables for Exam Results & Grades */
+.markdown-content table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 1rem 0;
+  font-size: 0.825rem;
+  background: #FFFFFF;
+  border: 1px solid #FDE68A;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  box-shadow: 0 2px 8px -2px rgba(234, 88, 12, 0.08);
+}
+
+.markdown-content thead {
+  background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+}
+
+.markdown-content th {
+  padding: 0.65rem 0.85rem;
+  font-weight: 700;
+  text-align: left;
+  color: #78350F;
+  border-bottom: 1px solid #FCD34D;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.markdown-content td {
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid #FEF3C7;
+  color: #334155;
+  line-height: 1.45;
+}
+
+.markdown-content tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.markdown-content tbody tr:nth-child(even) {
+  background-color: #FFFDF5;
+}
+
+.markdown-content tbody tr:hover {
+  background-color: #FEF9C3;
+  transition: background-color 0.15s ease-in-out;
+}
