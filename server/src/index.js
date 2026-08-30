@@ -70,6 +70,22 @@ app.get('/api/health', async (req, res) => {
   });
 });
 
+// Root welcome / status endpoint
+app.get('/', (req, res) => {
+  res.status(200).json({
+    success: true,
+    service: 'CampusRAG API',
+    status: 'online',
+    version: '1.0.0',
+    endpoints: {
+      health: '/api/health',
+      auth: '/api/auth',
+      documents: '/api/documents',
+      chat: '/api/chat',
+    },
+  });
+});
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/documents', documentRoutes);
