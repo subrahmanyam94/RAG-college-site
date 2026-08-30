@@ -8,7 +8,10 @@ class RetrievalService {
    */
   async retrieveContext(question, options = {}) {
     const topK = options.topK || config.topK || 4;
-    const isFallback = config.embeddingProvider === 'fallback';
+    // 1. Generate query vector embedding
+    const queryVector = await embeddingService.generateEmbedding(question);
+
+    const isFallback = config.embeddingProvider === 'fallback' || embeddingService.usingFallback;
     const threshold =
       options.threshold !== undefined
         ? options.threshold
@@ -20,9 +23,6 @@ class RetrievalService {
       category: options.category,
       department: options.department,
     };
-
-    // 1. Generate query vector embedding
-    const queryVector = await embeddingService.generateEmbedding(question);
 
     // 2. Query vector database
     const rawChunks = await vectorStore.queryVectors(queryVector, topK, filter);
@@ -39,8 +39,8 @@ class RetrievalService {
     const calibratedChunks = rawChunks.map((c) => {
       let displayScore = c.score;
       if (isFallback) {
-        // Map 0.08 .. 0.25 to 0.65 .. 0.98
-        displayScore = Math.min(0.99, Math.max(0.2, c.score * 4.5));
+        // Map 0.08 .. 0.40 to 0.70 .. 0.99
+        displayScore = Math.min(0.99, Math.max(0.2, c.score * 2.1));
       }
       return {
         ...c,

@@ -8,6 +8,7 @@ class EmbeddingService {
     this.geminiClient = config.geminiApiKey ? new GoogleGenerativeAI(config.geminiApiKey) : null;
     this.openaiClient = config.openaiApiKey ? new OpenAI({ apiKey: config.openaiApiKey }) : null;
     this.dimension = this.getDimension();
+    this.usingFallback = this.provider === 'fallback' || (!this.geminiClient && !this.openaiClient);
   }
 
   getDimension() {
@@ -27,14 +28,14 @@ class EmbeddingService {
 
     try {
       // 1. Google Gemini Embeddings
-      if (this.provider === 'gemini' && this.geminiClient) {
+      if (this.provider === 'gemini' && this.geminiClient && !this.usingFallback) {
         const model = this.geminiClient.getGenerativeModel({ model: 'text-embedding-004' });
         const result = await model.embedContent(cleanText);
         return result.embedding.values;
       }
 
       // 2. OpenAI Embeddings
-      if (this.provider === 'openai' && this.openaiClient) {
+      if (this.provider === 'openai' && this.openaiClient && !this.usingFallback) {
         const response = await this.openaiClient.embeddings.create({
           model: 'text-embedding-3-small',
           input: cleanText,
@@ -43,6 +44,7 @@ class EmbeddingService {
       }
     } catch (error) {
       console.warn(`[EmbeddingService] Remote embedding failed (${error.message}). Falling back to local semantic embedder.`);
+      this.usingFallback = true;
     }
 
     // 3. Fallback High-Dimensional Semantic Embedding (Normalized 768-dim)
