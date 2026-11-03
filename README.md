@@ -93,8 +93,8 @@ cd ../client && npm install
 PORT=5000
 NODE_ENV=development
 CLIENT_URL=http://localhost:5173
-MONGODB_URI=mongodb://127.0.0.1:27017/campusrag
-JWT_SECRET=super_secret_jwt_key_campusrag_2026_production_grade_512bit
+MONGODB_URI=your_mongodb_connection_string
+JWT_SECRET=your_random_secret
 JWT_EXPIRES_IN=7d
 
 # RAG & AI Configuration (fallback | gemini | openai)
